@@ -1,5 +1,5 @@
 
-public struct Socket : FileDescriptorRepresentable {
+public class Socket : FileDescriptorRepresentable {
     public var fileDescriptor: Int32
     
     @available(*, renamed: "init")
@@ -35,9 +35,9 @@ public struct Socket : FileDescriptorRepresentable {
             return !self.flags.contains(.nonblock)
         } set {
             if newValue {
-                self.flags.remove(.nonblock)
+                //self.flags.remove(.nonblock)
             } else {
-                self.flags.insert(.nonblock)
+                //self.flags.insert(.nonblock)
             }
         }
     }
@@ -236,7 +236,7 @@ extension Socket {
     public var reuseaddr: Bool {
         get {
             return getsock(opt: .reuseaddr)
-        } nonmutating set {
+        } set {
             setsock(opt: .reuseaddr, value: newValue)
         }
     }
@@ -245,7 +245,7 @@ extension Socket {
     public var reuseport: Bool {
         get {
             return getsock(opt: .reuseport)
-        } nonmutating set {
+        }  set {
             setsock(opt: .reuseport, value: newValue)
         }
     }
@@ -254,7 +254,7 @@ extension Socket {
     public var sendBufferSize: Int {
         get {
             return getsock(opt: .sendBuffer)
-        } nonmutating set {
+        }  set {
             setsock(opt: .sendBuffer, value: newValue)
         }
     }
@@ -263,7 +263,7 @@ extension Socket {
     public var recvBufferSize: Int {
         get {
             return getsock(opt: .recvBuffer)
-        } nonmutating set {
+        }  set {
             setsock(opt: .recvBuffer, value: newValue)
         }
     }
@@ -272,7 +272,7 @@ extension Socket {
     public var debug: Bool {
         get {
             return getsock(opt: .debug)
-        } nonmutating set {
+        }  set {
             setsock(opt: .debug, value: newValue)
         }
     }
@@ -281,7 +281,7 @@ extension Socket {
     public var sendTimeout: timeval {
         get {
             return getsock(opt: .sendTimeout)
-        } nonmutating set {
+        }  set {
             setsock(opt: .sendTimeout, value: newValue)
         }
     }
@@ -290,7 +290,7 @@ extension Socket {
     public var recvTimeout: timeval {
         get {
             return getsock(opt: .recvTimeout)
-        } nonmutating set {
+        }  set {
             setsock(opt: .recvTimeout, value: newValue)
         }
     }
@@ -299,7 +299,7 @@ extension Socket {
     public var keepalive: Bool {
         get {
             return getsock(opt: .keepalive)
-        } nonmutating set {
+        }  set {
             setsock(opt: .keepalive, value: newValue)
         }
     }
@@ -308,7 +308,7 @@ extension Socket {
     public var broadcast: Bool {
         get {
             return getsock(opt: .broadcast)
-        } nonmutating set {
+        }  set {
             setsock(opt: .broadcast, value: newValue)
         }
     }
@@ -318,7 +318,7 @@ extension Socket {
     public var noSigpipe: Bool {
         get {
             return getsock(opt: .nosigpipe)
-        } nonmutating set {
+        }  set {
             setsock(opt: .nosigpipe, value: newValue)
         }
     }
@@ -353,7 +353,7 @@ public struct SocketOptions: RawRepresentable {
     }
     
     #if os(Linux)
-    public static let acceptFilter = SocketOptions(rawValue: SO_ATTACH_BPF)
+    //public static let acceptFilter = SocketOptions(rawValue: SO_ATTACH_BPF)
     public static let bind2device = SocketOptions(rawValue: SO_BINDTODEVICE)
     public static let `protocol` = SocketOptions(rawValue: SO_PROTOCOL)
     #endif
