@@ -1,5 +1,6 @@
+import ServerSecurity
 
-public class Socket : FileDescriptorRepresentable {
+public class Socket : FileDescriptorRepresentable, ConnectionDelegate {
     public var fileDescriptor: Int32
     
     @available(*, renamed: "init")
@@ -30,17 +31,33 @@ public class Socket : FileDescriptorRepresentable {
         return (Socket(raw: pair[0]), Socket(raw: pair[1]))
     }
     
+    // TODO: FIX ME!!!
+    /*
     public var blocking: Bool {
         get {
             return !self.flags.contains(.nonblock)
         } set {
             if newValue {
-                //self.flags.remove(.nonblock)
+                self.flags.remove(.nonblock)
             } else {
-                //self.flags.insert(.nonblock)
+                self.flags.insert(.nonblock)
             }
         }
+    } */
+
+    ///
+    /// Return the file descriptor as a connection endpoint. (Readonly)
+    ///
+    public var endpoint: ConnectionType {
+        get {
+            return ConnectionType.socket(self.fileDescriptor)
+        }
     }
+
+    ///
+    /// The delegate that provides the TLS implementation.
+    ///
+    public var TLSdelegate: TLSServiceDelegate? = nil
 }
 
 public struct RecvFlags: OptionSet {
@@ -154,13 +171,52 @@ extension Socket {
                          &socklen)
         }
         
-        return (Socket(raw: fd), SocketAddress(storage: addr))
+        let newSocket = Socket(raw: fd)
+        
+        do {
+            
+            if TLSdelegate != nil {
+                try TLSdelegate?.didAccept(connection: newSocket)
+                print("accept: create new TLS socket")
+            }
+            
+        } catch let error {
+            
+            guard error is TLSError else {
+                
+                print("accept: TLS Error")
+                throw error
+            }
+            
+            throw error
+        }
+        
+        return (newSocket, SocketAddress(storage: addr))
+
     }
     
     public func connect(to addr: SocketAddress) throws {
         var addr = addr
         _ = try guarding("connect") {
             xlibc.connect(fileDescriptor, addr.addrptr(), addr.socklen)
+        }
+        
+        do {
+            
+            if TLSdelegate != nil {
+                try TLSdelegate?.didConnect(to: self)
+                print("connected to TLS socket")
+            }
+            
+        } catch let error {
+            
+            guard error is TLSError else {
+                
+                print("connect: TLS Error")
+                throw error
+            }
+            
+            throw error
         }
     }
     
@@ -173,19 +229,49 @@ extension Socket {
     @discardableResult
     public func send(bytes: Pointer,
                      length: Int, flags: SendFlags) throws -> Int {
-        return try guarding("send") {
-            xlibc.send(fileDescriptor, bytes.rawPointer, length, flags.rawValue)
+        var count: Int = 0
+        if TLSdelegate != nil {
+            
+            do {
+                count = try TLSdelegate!.willSend(buffer: bytes.rawPointer, bufSize: length)
+            } catch let error {
+                guard error is TLSError else {
+                    
+                    throw error
+                }
+            }
         }
+        else {
+            count = try guarding("send") {
+                xlibc.send(fileDescriptor, bytes.rawPointer, length, flags.rawValue)
+            }
+        }
+        return count
     }
     
     @discardableResult
     public func recv(to buffer: MutablePointer,
                      length: Int, flags: RecvFlags) throws -> Int {
-        return try guarding("recv") {
-            xlibc.recv(fileDescriptor,
-                       buffer.mutableRawPointer,
-                       length, flags.rawValue)
+        var count: Int = 0
+        if TLSdelegate != nil {
+            do {
+                count = try TLSdelegate!.willReceive(into: buffer.mutableRawPointer, bufSize: length)
+            } catch let error {
+                guard error is TLSError else {
+                    throw error
+                }
+            }
         }
+        else {
+            count = try guarding("recv") {
+                xlibc.recv(fileDescriptor,
+                           buffer.mutableRawPointer,
+                           length, flags.rawValue)
+            }
+        }
+        
+        return count
+
     }
     
     @discardableResult
@@ -353,7 +439,7 @@ public struct SocketOptions: RawRepresentable {
     }
     
     #if os(Linux)
-    //public static let acceptFilter = SocketOptions(rawValue: SO_ATTACH_BPF)
+    public static let acceptFilter = SocketOptions(rawValue: SO_ATTACH_BPF)
     public static let bind2device = SocketOptions(rawValue: SO_BINDTODEVICE)
     public static let `protocol` = SocketOptions(rawValue: SO_PROTOCOL)
     #endif
